@@ -7,7 +7,8 @@ import {
   Calendar, 
   Scale, 
   Plus, 
-  Users
+  Users,
+  Film
 } from 'lucide-react';
 import { 
   getProgressPhotos, 
@@ -22,6 +23,7 @@ interface AdminClientPhotoScannerModalProps {
   onClose: () => void;
   clients: CustomerRecord[];
   initialClientId?: string;
+  onOpenTransformationVideo?: (imageUrl: string) => void;
 }
 
 export const AdminClientPhotoScannerModal: React.FC<AdminClientPhotoScannerModalProps> = ({
@@ -29,6 +31,7 @@ export const AdminClientPhotoScannerModal: React.FC<AdminClientPhotoScannerModal
   onClose,
   clients,
   initialClientId = 'default',
+  onOpenTransformationVideo,
 }) => {
   const [selectedClientId, setSelectedClientId] = useState<string>(initialClientId);
   const [photos, setPhotos] = useState<ClientProgressPhotoItem[]>([]);
@@ -453,6 +456,30 @@ export const AdminClientPhotoScannerModal: React.FC<AdminClientPhotoScannerModal
                       <p style={{ fontSize: '11px', color: '#334155', margin: '4px 0 0', lineHeight: 1.35, fontStyle: 'italic' }}>
                         "{photo.notes}"
                       </p>
+                    )}
+
+                    {onOpenTransformationVideo && (
+                      <button
+                        type="button"
+                        onClick={() => onOpenTransformationVideo(photo.imageUrl)}
+                        style={{
+                          marginTop: '6px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '4px',
+                          padding: '5px 8px',
+                          borderRadius: '6px',
+                          backgroundColor: '#BE185D',
+                          color: '#FFFFFF',
+                          fontSize: '10.5px',
+                          fontWeight: 700,
+                          border: 'none',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        <Film size={11} /> Generate 8–10s Video
+                      </button>
                     )}
                   </div>
                 </div>

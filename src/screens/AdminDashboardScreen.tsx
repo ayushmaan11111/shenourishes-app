@@ -21,7 +21,8 @@ import {
   Clock,
   Zap,
   Dumbbell,
-  Flame
+  Flame,
+  Film
 } from 'lucide-react';
 import { AdminWorkoutPlanAssignmentModal } from '../components/admin/AdminWorkoutPlanAssignmentModal';
 import { SupplementFormulaManagerModal } from '../components/admin/SupplementFormulaManagerModal';
@@ -57,6 +58,7 @@ import { AdminLifestyleSupplementAssessmentModal } from '../components/admin/Adm
 import { AllClientDataSection } from '../components/admin/AllClientDataSection';
 import { EndOfMonthRegistrationDataBox } from '../components/admin/EndOfMonthRegistrationDataBox';
 import { BodyTransformationAssessmentModal } from '../components/admin/BodyTransformationAssessmentModal';
+import { ClientTransformationVideoModal } from '../components/admin/ClientTransformationVideoModal';
 import type { CustomerRecord, ActivityLevel } from '../types/customer';
 
 interface AdminDashboardScreenProps {
@@ -108,6 +110,8 @@ export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({
   const [showLifestyleSupplementModal, setShowLifestyleSupplementModal] = useState(false);
   const [showWorkoutPlanModal, setShowWorkoutPlanModal] = useState(false);
   const [showBodyTransformationModal, setShowBodyTransformationModal] = useState(false);
+  const [showTransformationVideoModal, setShowTransformationVideoModal] = useState(false);
+  const [videoModalInitialPhotoUrl, setVideoModalInitialPhotoUrl] = useState('');
 
   // Section 6 & 7: Message Box States
   const [counsellingMsgClient, setCounsellingMsgClient] = useState('');
@@ -373,6 +377,28 @@ export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({
           >
             <Flame size={14} color="#E8CA56" />
             <span>Transformation Planner (3-12 Mo)</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setShowTransformationVideoModal(true)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '7px 14px',
+              borderRadius: '8px',
+              backgroundColor: '#0A1C44',
+              color: '#F472B6',
+              fontSize: '12px',
+              fontWeight: 800,
+              border: '1.5px solid #BE185D',
+              cursor: 'pointer',
+              boxShadow: '0 2px 8px rgba(190, 24, 93, 0.25)',
+            }}
+          >
+            <Film size={14} color="#F472B6" />
+            <span>AI Video Generator (8–10s)</span>
           </button>
 
           {onExitAdmin && (
@@ -1130,6 +1156,7 @@ export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({
           onOpenPhotoScannerModal={() => setShowPhotoScannerModal(true)}
           onOpenIntensityModal={() => setShowIntensityModal(true)}
           onOpenBodyTransformationModal={() => setShowBodyTransformationModal(true)}
+          onOpenTransformationVideoModal={() => setShowTransformationVideoModal(true)}
         />
 
 
@@ -2171,6 +2198,10 @@ export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({
         onClose={() => setShowPhotoScannerModal(false)}
         clients={clients}
         initialClientId={selectedClientId}
+        onOpenTransformationVideo={(imgUrl) => {
+          setVideoModalInitialPhotoUrl(imgUrl);
+          setShowTransformationVideoModal(true);
+        }}
       />
 
       {/* Admin Intensity Assignment & Plan Start Date Modal */}
@@ -2224,6 +2255,18 @@ export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({
         gender={selectedClient?.personalDetails?.gender === 'Male' ? 'Male' : 'Female'}
         weightKg={selectedClient?.personalDetails?.weight || 64}
         bodyFatPct={selectedClient?.personalDetails?.bodyFatPercentage ?? 26}
+      />
+
+      {/* Client Transformation Video Generator Modal (AI Powered 8-10s Before vs After) */}
+      <ClientTransformationVideoModal
+        isOpen={showTransformationVideoModal}
+        onClose={() => {
+          setShowTransformationVideoModal(false);
+          setVideoModalInitialPhotoUrl('');
+        }}
+        clients={clients}
+        initialClientId={selectedClientId}
+        initialImageUrl={videoModalInitialPhotoUrl}
       />
     </div>
   );

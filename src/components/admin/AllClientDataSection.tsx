@@ -12,7 +12,8 @@ import {
   FileText, 
   Flame, 
   Dumbbell,
-  ShieldCheck
+  ShieldCheck,
+  Film
 } from 'lucide-react';
 import type { CustomerRecord } from '../../types/customer';
 
@@ -25,6 +26,7 @@ interface AllClientDataSectionProps {
   onOpenPhotoScannerModal?: () => void;
   onOpenIntensityModal?: () => void;
   onOpenBodyTransformationModal?: () => void;
+  onOpenTransformationVideoModal?: () => void;
 }
 
 export const AllClientDataSection: React.FC<AllClientDataSectionProps> = ({
@@ -36,6 +38,7 @@ export const AllClientDataSection: React.FC<AllClientDataSectionProps> = ({
   onOpenPhotoScannerModal,
   onOpenIntensityModal,
   onOpenBodyTransformationModal,
+  onOpenTransformationVideoModal,
 }) => {
   const [activeMainBox, setActiveMainBox] = useState<'long_term' | 'counselling'>('long_term');
   const [activeSubSection, setActiveSubSection] = useState<
@@ -572,6 +575,30 @@ export const AllClientDataSection: React.FC<AllClientDataSectionProps> = ({
                           >
                             <Flame size={15} color="#E8CA56" />
                             <span>Open 3/6/9/12 Mo Transformation Planner</span>
+                          </button>
+                        )}
+
+                        {onOpenTransformationVideoModal && (
+                          <button
+                            type="button"
+                            onClick={onOpenTransformationVideoModal}
+                            style={{
+                              padding: '8px 16px',
+                              borderRadius: '8px',
+                              backgroundColor: '#BE185D',
+                              color: '#FFFFFF',
+                              border: 'none',
+                              fontSize: '12px',
+                              fontWeight: 800,
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '6px',
+                              boxShadow: '0 2px 8px rgba(190, 24, 93, 0.25)',
+                            }}
+                          >
+                            <Film size={15} />
+                            <span>AI Transformation Video (8–10s)</span>
                           </button>
                         )}
 
