@@ -20,7 +20,8 @@ import {
   MessageCircle,
   Clock,
   Zap,
-  Dumbbell
+  Dumbbell,
+  Flame
 } from 'lucide-react';
 import { AdminWorkoutPlanAssignmentModal } from '../components/admin/AdminWorkoutPlanAssignmentModal';
 import { SupplementFormulaManagerModal } from '../components/admin/SupplementFormulaManagerModal';
@@ -53,6 +54,9 @@ import { AdminIntensityAssignmentModal } from '../components/admin/AdminIntensit
 import { AdminPriorBloodTestModal } from '../components/admin/AdminPriorBloodTestModal';
 import { AdminPlanDetailsBox } from '../components/admin/AdminPlanDetailsBox';
 import { AdminLifestyleSupplementAssessmentModal } from '../components/admin/AdminLifestyleSupplementAssessmentModal';
+import { AllClientDataSection } from '../components/admin/AllClientDataSection';
+import { EndOfMonthRegistrationDataBox } from '../components/admin/EndOfMonthRegistrationDataBox';
+import { BodyTransformationAssessmentModal } from '../components/admin/BodyTransformationAssessmentModal';
 import type { CustomerRecord, ActivityLevel } from '../types/customer';
 
 interface AdminDashboardScreenProps {
@@ -103,6 +107,22 @@ export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({
   const [showPriorBloodTestModal, setShowPriorBloodTestModal] = useState(false);
   const [showLifestyleSupplementModal, setShowLifestyleSupplementModal] = useState(false);
   const [showWorkoutPlanModal, setShowWorkoutPlanModal] = useState(false);
+  const [showBodyTransformationModal, setShowBodyTransformationModal] = useState(false);
+
+  // Section 6 & 7: Message Box States
+  const [counsellingMsgClient, setCounsellingMsgClient] = useState('');
+  const [counsellingMsgTemplate, setCounsellingMsgTemplate] = useState('offer');
+  const [counsellingMsgText, setCounsellingMsgText] = useState(
+    'Hi! Hope your wellness journey is progressing well. We have reviewed your 1-on-1 counseling progress and would like to offer you an exclusive transition into our 6-Month Long-Term Support Program with a 20% privilege discount. Let us know if you would like to proceed!'
+  );
+  const [counsellingMsgSent, setCounsellingMsgSent] = useState(false);
+
+  const [longTermMsgClient, setLongTermMsgClient] = useState('');
+  const [longTermMsgTemplate, setLongTermMsgTemplate] = useState('renewal');
+  const [longTermMsgText, setLongTermMsgText] = useState(
+    'Hi! This is a gentle reminder from She Nourishes. Your Long-Term Support Program validity is approaching its scheduled completion in 14 days. To maintain your metabolic momentum and uninterrupted personalized diet calibrations, renew your protocol today.'
+  );
+  const [longTermMsgSent, setLongTermMsgSent] = useState(false);
 
   // New Client Form State
   const [newClientName, setNewClientName] = useState('');
@@ -333,6 +353,28 @@ export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({
             <span>Plan Notifications</span>
           </button>
 
+          <button
+            type="button"
+            onClick={() => setShowBodyTransformationModal(true)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '7px 14px',
+              borderRadius: '8px',
+              backgroundColor: '#0A1C44',
+              color: '#E8CA56',
+              fontSize: '12px',
+              fontWeight: 800,
+              border: '1.5px solid #E8CA56',
+              cursor: 'pointer',
+              boxShadow: '0 2px 8px rgba(232, 202, 86, 0.2)',
+            }}
+          >
+            <Flame size={14} color="#E8CA56" />
+            <span>Transformation Planner (3-12 Mo)</span>
+          </button>
+
           {onExitAdmin && (
             <button
               type="button"
@@ -371,665 +413,725 @@ export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({
         />
 
         {/* =========================================================================
-            SECTION 1: TODAY'S UPDATES (100% EXACT MATCH TO TARGET DESIGN)
+            SECTION 1: NOTIFICATION BOX
+            Purpose: View pending messages, reminders, offers, and renewals.
            ========================================================================= */}
-        <section style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginBottom: '8px' }}>
+        <section
+          id="admin-section-1-notifications"
+          style={{
+            backgroundColor: '#FFFFFF',
+            borderRadius: '20px',
+            border: '1.5px solid #CBD5E1',
+            padding: '20px 24px',
+            boxShadow: '0 4px 16px rgba(0,0,0,0.03)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '14px',
+          }}
+        >
           {/* Header Row */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '8px' }}>
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <div style={{ width: '4px', height: '22px', backgroundColor: '#0066FE', borderRadius: '2px', flexShrink: 0 }} />
-                <h2 style={{ fontSize: '22px', fontWeight: 800, color: '#0A1C44', margin: 0, letterSpacing: '-0.3px' }}>
-                  Today's Updates
+                <h2 style={{ fontSize: '20px', fontWeight: 800, color: '#0A1C44', margin: 0, letterSpacing: '-0.3px' }}>
+                  1. Notification Box
                 </h2>
               </div>
               <p style={{ fontSize: '13px', color: '#64748B', margin: '3px 0 0 12px', fontWeight: 500 }}>
-                Follow-ups, reminders and recent activity.
+                View pending messages, reminders, offers, and renewals.
               </p>
             </div>
+
             <button
               type="button"
-              onClick={() => setShowLeadDataBookModal(true)}
+              onClick={() => {
+                setLongTermReminderDefaultTab('ending_soon');
+                setShowLongTermReminderHubModal(true);
+              }}
               style={{
                 background: 'none',
                 border: 'none',
-                color: '#64748B',
-                fontSize: '13.5px',
-                fontWeight: 600,
+                color: '#0066FE',
+                fontSize: '13px',
+                fontWeight: 700,
                 cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '2px',
+                gap: '4px',
                 padding: '4px 0',
               }}
             >
-              <span>See all</span>
+              <span>Manage all alerts</span>
               <ChevronRight size={15} />
             </button>
           </div>
 
-          {/* Icon Badges Row: Counselling & Sold Clients */}
-          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '56px', padding: '6px 0 4px' }}>
-            {/* 1. Counselling Icon */}
+          {/* 4 Interactive Notification Tiles */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px' }}>
+            {/* Notification 1: Pending Counselor Messages */}
             <div
               onClick={() => setShowCounsellingRealModal(true)}
-              style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', cursor: 'pointer' }}
-              title="1-on-1 Counselling Leads & Follow-ups"
-            >
-              <div
-                style={{
-                  width: '64px',
-                  height: '64px',
-                  borderRadius: '16px',
-                  backgroundColor: '#FFF1F2',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  position: 'relative',
-                  boxShadow: '0 2px 8px rgba(225, 29, 72, 0.05)',
-                  transition: 'transform 0.15s ease',
-                }}
-              >
-                <MessageCircle size={28} color="#BE185D" strokeWidth={1.8} />
-                <span
-                  style={{
-                    position: 'absolute',
-                    top: '-5px',
-                    right: '-5px',
-                    backgroundColor: '#EF4444',
-                    color: '#FFFFFF',
-                    borderRadius: '999px',
-                    minWidth: '20px',
-                    height: '20px',
-                    padding: '0 5px',
-                    fontSize: '11px',
-                    fontWeight: 800,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    boxShadow: '0 2px 5px rgba(239, 68, 68, 0.35)',
-                  }}
-                >
-                  8
-                </span>
-              </div>
-              <span style={{ marginTop: '8px', fontSize: '13px', fontWeight: 700, color: '#0A1C44' }}>
-                Counselling
-              </span>
-            </div>
-
-            {/* 2. Sold Clients Icon */}
-            <div
-              onClick={() => setShowLongTermDataBookModal(true)}
-              style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', cursor: 'pointer' }}
-              title="Sold Clients Data Book"
-            >
-              <div
-                style={{
-                  width: '64px',
-                  height: '64px',
-                  borderRadius: '16px',
-                  backgroundColor: '#DCFCE7',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  position: 'relative',
-                  boxShadow: '0 2px 8px rgba(22, 163, 74, 0.05)',
-                  transition: 'transform 0.15s ease',
-                }}
-              >
-                <MessageCircle size={28} color="#16A34A" strokeWidth={1.8} />
-                <span
-                  style={{
-                    position: 'absolute',
-                    top: '-5px',
-                    right: '-5px',
-                    backgroundColor: '#EF4444',
-                    color: '#FFFFFF',
-                    borderRadius: '999px',
-                    minWidth: '20px',
-                    height: '20px',
-                    padding: '0 5px',
-                    fontSize: '11px',
-                    fontWeight: 800,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    boxShadow: '0 2px 5px rgba(239, 68, 68, 0.35)',
-                  }}
-                >
-                  3
-                </span>
-              </div>
-              <span style={{ marginTop: '8px', fontSize: '13px', fontWeight: 700, color: '#0A1C44' }}>
-                Sold Clients
-              </span>
-            </div>
-          </div>
-
-          {/* Action Banner: Send message for long term councilling suggestions */}
-          <div
-            onClick={() => setShowPlanNotificationModal(true)}
-            style={{
-              backgroundColor: '#F4F8FF',
-              border: '1px solid #DCEBFF',
-              borderRadius: '16px',
-              padding: '14px 18px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              cursor: 'pointer',
-              marginTop: '4px',
-              boxShadow: '0 1px 4px rgba(0, 102, 254, 0.03)',
-              transition: 'background-color 0.15s ease',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <Send size={19} color="#0066FE" strokeWidth={2} style={{ transform: 'rotate(-5deg)' }} />
-              <span style={{ fontSize: '13.5px', fontWeight: 600, color: '#1E293B' }}>
-                Send message for long term councilling suggestions
-              </span>
-            </div>
-            <ChevronRight size={18} color="#64748B" />
-          </div>
-        </section>
-
-        {/* =========================================================================
-            SECTION 2: LEADS AND SOLD DATABOX SECTIONS (100% EXACT MATCH)
-           ========================================================================= */}
-        <section style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginBottom: '8px' }}>
-          {/* Header Row */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <div style={{ width: '4px', height: '22px', backgroundColor: '#0066FE', borderRadius: '2px', flexShrink: 0 }} />
-                <h2 style={{ fontSize: '22px', fontWeight: 800, color: '#0A1C44', margin: 0, letterSpacing: '-0.3px' }}>
-                  Leads and Sold Databox Sections
-                </h2>
-              </div>
-              <p style={{ fontSize: '13px', color: '#64748B', margin: '3px 0 0 12px', fontWeight: 500 }}>
-                View and manage your lead data.
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={() => setShowLeadDataBookModal(true)}
               style={{
-                background: 'none',
-                border: 'none',
-                color: '#64748B',
-                fontSize: '13.5px',
-                fontWeight: 600,
+                backgroundColor: '#FFF1F2',
+                border: '1.5px solid #FECDD3',
+                borderRadius: '14px',
+                padding: '14px 16px',
                 cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '2px',
-                padding: '4px 0',
-              }}
-            >
-              <span>See all</span>
-              <ChevronRight size={15} />
-            </button>
-          </div>
-
-          {/* Cards Grid: 1 on 1 Counselling & 1 on 1 Sold Clients */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '14px' }}>
-            {/* Card 1: 1 on 1 Counselling */}
-            <div
-              onClick={() => setShowLeadDataBookModal(true)}
-              style={{
-                backgroundColor: '#FFFFFF',
-                border: '1.5px solid #BFDBFE',
-                borderRadius: '18px',
-                padding: '18px',
-                minHeight: '142px',
-                display: 'flex',
-                flexDirection: 'column',
                 justifyContent: 'space-between',
-                cursor: 'pointer',
-                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.02)',
-                transition: 'transform 0.15s ease, box-shadow 0.15s ease',
-              }}
-              title="Open 1-on-1 Counselling Leads Data Book"
-            >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                <div
-                  style={{
-                    width: '42px',
-                    height: '42px',
-                    borderRadius: '12px',
-                    backgroundColor: '#0A1C44',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    boxShadow: '0 2px 6px rgba(10, 28, 68, 0.2)',
-                  }}
-                >
-                  <Heart size={22} color="#FFFFFF" strokeWidth={2.2} />
-                </div>
-                <ChevronRight size={18} color="#64748B" />
-              </div>
-
-              <div style={{ marginTop: '18px' }}>
-                <div style={{ fontSize: '18px', fontWeight: 800, color: '#0A1C44', lineHeight: 1.25 }}>
-                  1 on 1
-                </div>
-                <div style={{ fontSize: '18px', fontWeight: 800, color: '#0A1C44', lineHeight: 1.25 }}>
-                  Counselling
-                </div>
-              </div>
-            </div>
-
-            {/* Card 2: 1 on 1 Sold Clients */}
-            <div
-              onClick={() => setShowLongTermDataBookModal(true)}
-              style={{
-                backgroundColor: '#FFFFFF',
-                border: '1.5px solid #BFDBFE',
-                borderRadius: '18px',
-                padding: '18px',
-                minHeight: '142px',
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'space-between',
-                cursor: 'pointer',
-                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.02)',
-                transition: 'transform 0.15s ease, box-shadow 0.15s ease',
-              }}
-              title="Open 1-on-1 Sold Clients Data Book"
-            >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                <div
-                  style={{
-                    width: '42px',
-                    height: '42px',
-                    borderRadius: '12px',
-                    backgroundColor: '#0A1C44',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    boxShadow: '0 2px 6px rgba(10, 28, 68, 0.2)',
-                  }}
-                >
-                  <Heart size={22} color="#FFFFFF" strokeWidth={2.2} />
-                </div>
-                <ChevronRight size={18} color="#64748B" />
-              </div>
-
-              <div style={{ marginTop: '18px' }}>
-                <div style={{ fontSize: '18px', fontWeight: 800, color: '#0A1C44', lineHeight: 1.25 }}>
-                  1 on 1
-                </div>
-                <div style={{ fontSize: '18px', fontWeight: 800, color: '#0A1C44', lineHeight: 1.25 }}>
-                  Sold Clients
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* =========================================================================
-            LONG-TERM SECTION 1: UPDATES & 3 REMINDER BOXES (EXACT MATCHING DESIGN)
-           ========================================================================= */}
-        <section style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginBottom: '8px', marginTop: '6px' }}>
-          {/* Header Row */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <div style={{ width: '4px', height: '22px', backgroundColor: '#059669', borderRadius: '2px', flexShrink: 0 }} />
-                <h2 style={{ fontSize: '22px', fontWeight: 800, color: '#064E3B', margin: 0, letterSpacing: '-0.3px' }}>
-                  Long-Term Updates & Reminders
-                </h2>
-              </div>
-              <p style={{ fontSize: '13px', color: '#64748B', margin: '3px 0 0 12px', fontWeight: 500 }}>
-                Daily lead reminders, auto message switches & validity alerts.
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={() => {
-                setLongTermReminderDefaultTab('leads');
-                setShowLongTermReminderHubModal(true);
-              }}
-              style={{
-                background: 'none',
-                border: 'none',
-                color: '#64748B',
-                fontSize: '13.5px',
-                fontWeight: 600,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '2px',
-                padding: '4px 0',
+                transition: 'transform 0.15s ease',
               }}
             >
-              <span>See all</span>
-              <ChevronRight size={15} />
-            </button>
-          </div>
-
-          {/* 3 Reminder Badges / Boxes Row */}
-          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '36px', padding: '6px 0 4px', flexWrap: 'wrap' }}>
-            {/* 1. Daily Lead Reminder Box (Connected with Long Term Leads) */}
-            <div
-              onClick={() => {
-                setLongTermReminderDefaultTab('leads');
-                setShowLongTermReminderHubModal(true);
-              }}
-              style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', cursor: 'pointer' }}
-              title="Daily Lead Reminders (Auto Message Switch / Manual / Scripted)"
-            >
-              <div
-                style={{
-                  width: '64px',
-                  height: '64px',
-                  borderRadius: '16px',
-                  backgroundColor: '#FFF1F2',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  position: 'relative',
-                  boxShadow: '0 2px 8px rgba(225, 29, 72, 0.05)',
-                  transition: 'transform 0.15s ease',
-                }}
-              >
-                <MessageCircle size={28} color="#BE185D" strokeWidth={1.8} />
-                <span
-                  style={{
-                    position: 'absolute',
-                    top: '-5px',
-                    right: '-5px',
-                    backgroundColor: '#EF4444',
-                    color: '#FFFFFF',
-                    borderRadius: '999px',
-                    minWidth: '20px',
-                    height: '20px',
-                    padding: '0 5px',
-                    fontSize: '11px',
-                    fontWeight: 800,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    boxShadow: '0 2px 5px rgba(239, 68, 68, 0.35)',
-                  }}
-                >
-                  {ltLeadsCount || 5}
-                </span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <MessageCircle size={22} color="#BE185D" />
+                <div>
+                  <div style={{ fontSize: '11px', fontWeight: 800, color: '#9F1239', textTransform: 'uppercase' }}>Client Messages</div>
+                  <strong style={{ fontSize: '13px', color: '#881337' }}>8 Unread Consultations</strong>
+                </div>
               </div>
-              <span style={{ marginTop: '8px', fontSize: '13px', fontWeight: 700, color: '#064E3B' }}>
-                Lead Reminders
+              <span style={{ fontSize: '11px', backgroundColor: '#EF4444', color: '#FFF', fontWeight: 800, padding: '2px 7px', borderRadius: '999px' }}>
+                8
               </span>
             </div>
 
-            {/* 2. Package Ending Soon Msg Reminder Box */}
+            {/* Notification 2: Package Ending Soon Alerts */}
             <div
               onClick={() => {
                 setLongTermReminderDefaultTab('ending_soon');
                 setShowLongTermReminderHubModal(true);
               }}
-              style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', cursor: 'pointer' }}
-              title="Package Ending Soon Msg Reminder Box"
+              style={{
+                backgroundColor: '#FEF3C7',
+                border: '1.5px solid #FDE68A',
+                borderRadius: '14px',
+                padding: '14px 16px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                transition: 'transform 0.15s ease',
+              }}
             >
-              <div
-                style={{
-                  width: '64px',
-                  height: '64px',
-                  borderRadius: '16px',
-                  backgroundColor: '#FEF3C7',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  position: 'relative',
-                  boxShadow: '0 2px 8px rgba(217, 119, 6, 0.08)',
-                  transition: 'transform 0.15s ease',
-                }}
-              >
-                <Clock size={28} color="#D97706" strokeWidth={1.8} />
-                <span
-                  style={{
-                    position: 'absolute',
-                    top: '-5px',
-                    right: '-5px',
-                    backgroundColor: '#EF4444',
-                    color: '#FFFFFF',
-                    borderRadius: '999px',
-                    minWidth: '20px',
-                    height: '20px',
-                    padding: '0 5px',
-                    fontSize: '11px',
-                    fontWeight: 800,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    boxShadow: '0 2px 5px rgba(239, 68, 68, 0.35)',
-                  }}
-                >
-                  {ltEndingSoonCount || 2}
-                </span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <Clock size={22} color="#D97706" />
+                <div>
+                  <div style={{ fontSize: '11px', fontWeight: 800, color: '#92400E', textTransform: 'uppercase' }}>Package Validity</div>
+                  <strong style={{ fontSize: '13px', color: '#78350F' }}>{ltEndingSoonCount || 3} Ending Soon (14d)</strong>
+                </div>
               </div>
-              <span style={{ marginTop: '8px', fontSize: '13px', fontWeight: 700, color: '#064E3B' }}>
-                Ending Soon
+              <span style={{ fontSize: '11px', backgroundColor: '#F59E0B', color: '#FFF', fontWeight: 800, padding: '2px 7px', borderRadius: '999px' }}>
+                {ltEndingSoonCount || 3}
               </span>
             </div>
 
-            {/* 3. Auto Start Date & Validity Reminder Box */}
+            {/* Notification 3: Transition Offers Pending */}
+            <div
+              onClick={() => setShowPlanNotificationModal(true)}
+              style={{
+                backgroundColor: '#EFF6FF',
+                border: '1.5px solid #BFDBFE',
+                borderRadius: '14px',
+                padding: '14px 16px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                transition: 'transform 0.15s ease',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <Send size={20} color="#2563EB" />
+                <div>
+                  <div style={{ fontSize: '11px', fontWeight: 800, color: '#1E40AF', textTransform: 'uppercase' }}>Transition Offers</div>
+                  <strong style={{ fontSize: '13px', color: '#1E3A8A' }}>5 Long-Term Deals</strong>
+                </div>
+              </div>
+              <span style={{ fontSize: '11px', backgroundColor: '#2563EB', color: '#FFF', fontWeight: 800, padding: '2px 7px', borderRadius: '999px' }}>
+                5
+              </span>
+            </div>
+
+            {/* Notification 4: Active Renewals Tracker */}
             <div
               onClick={() => {
                 setLongTermReminderDefaultTab('validity');
                 setShowLongTermReminderHubModal(true);
               }}
-              style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', cursor: 'pointer' }}
-              title="Auto Start Date & Validity Tracker"
+              style={{
+                backgroundColor: '#DCFCE7',
+                border: '1.5px solid #BBF7D0',
+                borderRadius: '14px',
+                padding: '14px 16px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                transition: 'transform 0.15s ease',
+              }}
             >
-              <div
-                style={{
-                  width: '64px',
-                  height: '64px',
-                  borderRadius: '16px',
-                  backgroundColor: '#DCFCE7',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  position: 'relative',
-                  boxShadow: '0 2px 8px rgba(22, 163, 74, 0.05)',
-                  transition: 'transform 0.15s ease',
-                }}
-              >
-                <Sparkles size={28} color="#16A34A" strokeWidth={1.8} />
-                <span
-                  style={{
-                    position: 'absolute',
-                    top: '-5px',
-                    right: '-5px',
-                    backgroundColor: '#059669',
-                    color: '#FFFFFF',
-                    borderRadius: '999px',
-                    minWidth: '20px',
-                    height: '20px',
-                    padding: '0 5px',
-                    fontSize: '11px',
-                    fontWeight: 800,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    boxShadow: '0 2px 5px rgba(5, 150, 105, 0.35)',
-                  }}
-                >
-                  {ltValidityCount || 3}
-                </span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <Sparkles size={22} color="#16A34A" />
+                <div>
+                  <div style={{ fontSize: '11px', fontWeight: 800, color: '#166534', textTransform: 'uppercase' }}>Renewals Tracker</div>
+                  <strong style={{ fontSize: '13px', color: '#14532D' }}>{ltValidityCount || 6} Active Plans</strong>
+                </div>
               </div>
-              <span style={{ marginTop: '8px', fontSize: '13px', fontWeight: 700, color: '#064E3B' }}>
-                Validity & Start
+              <span style={{ fontSize: '11px', backgroundColor: '#16A34A', color: '#FFF', fontWeight: 800, padding: '2px 7px', borderRadius: '999px' }}>
+                {ltValidityCount || 6}
               </span>
             </div>
-          </div>
-
-          {/* Action Banner: Send automated validity & package renewal reminders */}
-          <div
-            onClick={() => {
-              setLongTermReminderDefaultTab('ending_soon');
-              setShowLongTermReminderHubModal(true);
-            }}
-            style={{
-              backgroundColor: '#F0FDF4',
-              border: '1px solid #BBF7D0',
-              borderRadius: '16px',
-              padding: '14px 18px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              cursor: 'pointer',
-              marginTop: '4px',
-              boxShadow: '0 1px 4px rgba(5, 150, 105, 0.03)',
-              transition: 'background-color 0.15s ease',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <Send size={19} color="#059669" strokeWidth={2} style={{ transform: 'rotate(-5deg)' }} />
-              <span style={{ fontSize: '13.5px', fontWeight: 600, color: '#064E3B' }}>
-                Send automated validity & package renewal reminders
-              </span>
-            </div>
-            <ChevronRight size={18} color="#64748B" />
           </div>
         </section>
 
         {/* =========================================================================
-            LONG-TERM SECTION 2: DATABOX SECTIONS (EXACT MATCH, ICONS DEEP GREEN)
+            SECTIONS 2, 3, 4, 5: LEADS & CONFIRMED SALES (2X2 BALANCED GRID)
            ========================================================================= */}
-        <section style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginBottom: '14px' }}>
-          {/* Header Row */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
+          
+          {/* SECTION 2: LEAD – ONE-ON-ONE COUNSELING */}
+          <section
+            id="admin-section-2-lead-counselling"
+            onClick={() => setShowLeadDataBookModal(true)}
+            style={{
+              backgroundColor: '#FFFFFF',
+              borderRadius: '20px',
+              border: '1.5px solid #BFDBFE',
+              padding: '20px',
+              boxShadow: '0 4px 14px rgba(0, 102, 254, 0.04)',
+              cursor: 'pointer',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'space-between',
+              minHeight: '190px',
+              transition: 'transform 0.15s ease, box-shadow 0.15s ease',
+            }}
+            title="Open Lead – One-on-One Counseling Data Book"
+          >
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <div
+                  style={{
+                    width: '42px',
+                    height: '42px',
+                    borderRadius: '12px',
+                    backgroundColor: '#0A1C44',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <MessageCircle size={22} color="#FFFFFF" />
+                </div>
+                <span style={{ fontSize: '11px', backgroundColor: '#EFF6FF', color: '#1D4ED8', padding: '3px 8px', borderRadius: '6px', fontWeight: 800 }}>
+                  8 Potential Leads
+                </span>
+              </div>
+
+              <div style={{ marginTop: '14px' }}>
+                <span style={{ fontSize: '11px', color: '#0066FE', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  SECTION 2
+                </span>
+                <h3 style={{ fontSize: '18px', fontWeight: 800, color: '#0A1C44', margin: '2px 0 4px' }}>
+                  2. Lead – One-on-One Counseling
+                </h3>
+                <p style={{ fontSize: '12px', color: '#64748B', margin: 0, lineHeight: 1.4 }}>
+                  Manage potential one-on-one counseling clients, initial symptom screenings & intake bookings.
+                </p>
+              </div>
+            </div>
+
+            <div style={{ borderTop: '1px solid #F1F5F9', paddingTop: '10px', marginTop: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: '11.5px', color: '#1E40AF', fontWeight: 700 }}>Open Lead Databook</span>
+              <ChevronRight size={16} color="#1E40AF" />
+            </div>
+          </section>
+
+          {/* SECTION 3: LEAD – LONG-TERM SUPPORT */}
+          <section
+            id="admin-section-3-lead-longterm"
+            onClick={() => setShowLongTermLeadDataModal(true)}
+            style={{
+              backgroundColor: '#FFFFFF',
+              borderRadius: '20px',
+              border: '1.5px solid #A7F3D0',
+              padding: '20px',
+              boxShadow: '0 4px 14px rgba(5, 150, 105, 0.04)',
+              cursor: 'pointer',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'space-between',
+              minHeight: '190px',
+              transition: 'transform 0.15s ease, box-shadow 0.15s ease',
+            }}
+            title="Open Lead – Long-Term Support Data Book"
+          >
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <div
+                  style={{
+                    width: '42px',
+                    height: '42px',
+                    borderRadius: '12px',
+                    backgroundColor: '#064E3B',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <Heart size={22} color="#FFFFFF" />
+                </div>
+                <span style={{ fontSize: '11px', backgroundColor: '#ECFDF5', color: '#047857', padding: '3px 8px', borderRadius: '6px', fontWeight: 800 }}>
+                  {ltLeadsCount || 5} Potential Clients
+                </span>
+              </div>
+
+              <div style={{ marginTop: '14px' }}>
+                <span style={{ fontSize: '11px', color: '#059669', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  SECTION 3
+                </span>
+                <h3 style={{ fontSize: '18px', fontWeight: 800, color: '#064E3B', margin: '2px 0 4px' }}>
+                  3. Lead – Long-Term Support
+                </h3>
+                <p style={{ fontSize: '12px', color: '#64748B', margin: 0, lineHeight: 1.4 }}>
+                  Manage potential long-term support clients, multi-month transition readiness & custom offers.
+                </p>
+              </div>
+            </div>
+
+            <div style={{ borderTop: '1px solid #F1F5F9', paddingTop: '10px', marginTop: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: '11.5px', color: '#047857', fontWeight: 700 }}>Open Long-Term Leads</span>
+              <ChevronRight size={16} color="#047857" />
+            </div>
+          </section>
+
+          {/* SECTION 4: SOLD – ONE-ON-ONE COUNSELING */}
+          <section
+            id="admin-section-4-sold-counselling"
+            onClick={() => setShowLongTermDataBookModal(true)}
+            style={{
+              backgroundColor: '#FFFFFF',
+              borderRadius: '20px',
+              border: '1.5px solid #FBCFE8',
+              padding: '20px',
+              boxShadow: '0 4px 14px rgba(190, 24, 93, 0.04)',
+              cursor: 'pointer',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'space-between',
+              minHeight: '190px',
+              transition: 'transform 0.15s ease, box-shadow 0.15s ease',
+            }}
+            title="Open Sold – One-on-One Counseling Records"
+          >
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <div
+                  style={{
+                    width: '42px',
+                    height: '42px',
+                    borderRadius: '12px',
+                    backgroundColor: '#BE185D',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <Users size={22} color="#FFFFFF" />
+                </div>
+                <span style={{ fontSize: '11px', backgroundColor: '#FDF2F8', color: '#BE185D', padding: '3px 8px', borderRadius: '6px', fontWeight: 800 }}>
+                  Active Packages
+                </span>
+              </div>
+
+              <div style={{ marginTop: '14px' }}>
+                <span style={{ fontSize: '11px', color: '#BE185D', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  SECTION 4
+                </span>
+                <h3 style={{ fontSize: '18px', fontWeight: 800, color: '#881337', margin: '2px 0 4px' }}>
+                  4. Sold – One-on-One Counseling
+                </h3>
+                <p style={{ fontSize: '12px', color: '#64748B', margin: 0, lineHeight: 1.4 }}>
+                  Manage purchased counseling packages and identify active clients for long-term support offers.
+                </p>
+              </div>
+            </div>
+
+            <div style={{ borderTop: '1px solid #F1F5F9', paddingTop: '10px', marginTop: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: '11.5px', color: '#BE185D', fontWeight: 700 }}>Identify For Long-Term Offers</span>
+              <ChevronRight size={16} color="#BE185D" />
+            </div>
+          </section>
+
+          {/* SECTION 5: SOLD – LONG-TERM SUPPORT */}
+          <section
+            id="admin-section-5-sold-longterm"
+            onClick={() => setShowLongTermSoldDataModal(true)}
+            style={{
+              backgroundColor: '#FFFFFF',
+              borderRadius: '20px',
+              border: '1.5px solid #FED7AA',
+              padding: '20px',
+              boxShadow: '0 4px 14px rgba(217, 119, 6, 0.04)',
+              cursor: 'pointer',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'space-between',
+              minHeight: '190px',
+              transition: 'transform 0.15s ease, box-shadow 0.15s ease',
+            }}
+            title="Open Sold – Long-Term Support Packages and Renewals"
+          >
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <div
+                  style={{
+                    width: '42px',
+                    height: '42px',
+                    borderRadius: '12px',
+                    backgroundColor: '#C2410C',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <ShieldCheck size={22} color="#FFFFFF" />
+                </div>
+                <span style={{ fontSize: '11px', backgroundColor: '#FFF7ED', color: '#C2410C', padding: '3px 8px', borderRadius: '6px', fontWeight: 800 }}>
+                  Confirmed Retainers
+                </span>
+              </div>
+
+              <div style={{ marginTop: '14px' }}>
+                <span style={{ fontSize: '11px', color: '#C2410C', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  SECTION 5
+                </span>
+                <h3 style={{ fontSize: '18px', fontWeight: 800, color: '#7C2D12', margin: '2px 0 4px' }}>
+                  5. Sold – Long-Term Support
+                </h3>
+                <p style={{ fontSize: '12px', color: '#64748B', margin: 0, lineHeight: 1.4 }}>
+                  Manage purchased long-term support packages, multi-month contracts, and renewal timelines.
+                </p>
+              </div>
+            </div>
+
+            <div style={{ borderTop: '1px solid #F1F5F9', paddingTop: '10px', marginTop: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: '11.5px', color: '#C2410C', fontWeight: 700 }}>Open Sold Long-Term Data</span>
+              <ChevronRight size={16} color="#C2410C" />
+            </div>
+          </section>
+        </div>
+
+        {/* =========================================================================
+            SECTION 6: ONE-ON-ONE COUNSELING MESSAGE BOX
+            Purpose: Send manual counseling-related messages and long-term support offers.
+           ========================================================================= */}
+        <section
+          id="admin-section-6-counselling-message-box"
+          style={{
+            backgroundColor: '#FFFFFF',
+            borderRadius: '20px',
+            border: '1.5px solid #CBD5E1',
+            padding: '22px',
+            boxShadow: '0 4px 16px rgba(0,0,0,0.03)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '14px',
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <div style={{ width: '4px', height: '22px', backgroundColor: '#059669', borderRadius: '2px', flexShrink: 0 }} />
-                <h2 style={{ fontSize: '22px', fontWeight: 800, color: '#064E3B', margin: 0, letterSpacing: '-0.3px' }}>
-                  Long-Term Support Databox Sections
+                <div style={{ width: '4px', height: '22px', backgroundColor: '#BE185D', borderRadius: '2px', flexShrink: 0 }} />
+                <h2 style={{ fontSize: '20px', fontWeight: 800, color: '#0A1C44', margin: 0, letterSpacing: '-0.3px' }}>
+                  6. One-on-One Counseling Message Box
                 </h2>
               </div>
               <p style={{ fontSize: '13px', color: '#64748B', margin: '3px 0 0 12px', fontWeight: 500 }}>
-                View and manage long-term lead data and sold clients.
+                Send manual counseling-related messages and long-term support offers.
               </p>
             </div>
+
+            {counsellingMsgSent && (
+              <span style={{ fontSize: '12px', fontWeight: 800, color: '#059669', backgroundColor: '#ECFDF5', padding: '4px 10px', borderRadius: '6px' }}>
+                ✓ Counseling Message Sent Successfully!
+              </span>
+            )}
+          </div>
+
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+            <span style={{ fontSize: '11.5px', fontWeight: 700, color: '#475569', alignSelf: 'center' }}>Quick Templates:</span>
+            {[
+              { id: 'offer', label: 'Long-Term Support Offer (20% Off)', text: 'Hi! Hope your wellness journey is progressing well. We have reviewed your 1-on-1 counseling progress and would like to offer you an exclusive transition into our 6-Month Long-Term Support Program with a 20% privilege discount. Let us know if you would like to proceed!' },
+              { id: 'followup', label: 'Session Follow-up & Checklist', text: 'Hi! Thank you for our consultation session today. Please review your personalized diet chart and ensure you stay consistent with your hydration goal. Let us know if you need any recipe substitutions.' },
+              { id: 'blueprint', label: 'Metabolic Blueprint Review', text: 'Hi! Your clinical Metabolic Blueprint has been calibrated with your updated LBM and carbohydrate tolerance. Please view your revised meal timings in your app dashboard.' },
+            ].map((tmpl) => (
+              <button
+                key={tmpl.id}
+                type="button"
+                onClick={() => {
+                  setCounsellingMsgTemplate(tmpl.id);
+                  setCounsellingMsgText(tmpl.text);
+                }}
+                style={{
+                  padding: '5px 12px',
+                  borderRadius: '6px',
+                  fontSize: '11px',
+                  fontWeight: 700,
+                  border: counsellingMsgTemplate === tmpl.id ? '1px solid #BE185D' : '1px solid #E2E8F0',
+                  backgroundColor: counsellingMsgTemplate === tmpl.id ? '#FFF1F2' : '#F8FAFC',
+                  color: counsellingMsgTemplate === tmpl.id ? '#BE185D' : '#475569',
+                  cursor: 'pointer',
+                }}
+              >
+                {tmpl.label}
+              </button>
+            ))}
+          </div>
+
+          <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
+            <label style={{ fontSize: '12px', fontWeight: 700, color: '#334155' }}>
+              Target Client:
+            </label>
+            <select
+              value={counsellingMsgClient}
+              onChange={(e) => setCounsellingMsgClient(e.target.value)}
+              style={{
+                padding: '6px 12px',
+                borderRadius: '8px',
+                border: '1px solid #CBD5E1',
+                fontSize: '12px',
+                backgroundColor: '#FFFFFF',
+                color: '#1E293B',
+                fontWeight: 600,
+              }}
+            >
+              <option value="">All Counseling Clients (Broadcast)</option>
+              {clients.map(c => (
+                <option key={c.uid} value={c.uid}>
+                  {c.personalDetails?.fullName || 'Client'} ({c.personalDetails?.mobileNumber || c.uid.slice(0, 8)})
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+            <div style={{ flex: 1, minWidth: '280px' }}>
+              <textarea
+                rows={3}
+                value={counsellingMsgText}
+                onChange={(e) => setCounsellingMsgText(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '12px',
+                  borderRadius: '10px',
+                  border: '1px solid #CBD5E1',
+                  fontSize: '13px',
+                  lineHeight: 1.5,
+                  color: '#1E293B',
+                  backgroundColor: '#FAF9F6',
+                  fontFamily: 'inherit',
+                }}
+                placeholder="Type your personalized message or offer..."
+              />
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
             <button
               type="button"
-              onClick={() => setShowLongTermLeadDataModal(true)}
+              onClick={() => {
+                setCounsellingMsgSent(true);
+                setTimeout(() => setCounsellingMsgSent(false), 3000);
+              }}
               style={{
-                background: 'none',
-                border: 'none',
-                color: '#64748B',
-                fontSize: '13.5px',
-                fontWeight: 600,
-                cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '2px',
-                padding: '4px 0',
+                gap: '6px',
+                padding: '9px 18px',
+                borderRadius: '8px',
+                backgroundColor: '#BE185D',
+                color: '#FFFFFF',
+                fontSize: '12.5px',
+                fontWeight: 800,
+                border: 'none',
+                cursor: 'pointer',
+                boxShadow: '0 2px 8px rgba(190, 24, 93, 0.25)',
               }}
             >
-              <span>See all</span>
-              <ChevronRight size={15} />
+              <Send size={15} />
+              <span>Send 1-on-1 Counseling Message & Offer</span>
             </button>
           </div>
+        </section>
 
-          {/* Cards Grid: Long Term Support Leads & Long Term Sold Clients */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '14px' }}>
-            {/* Card 1: Long Term Support Lead Data Box */}
-            <div
-              onClick={() => setShowLongTermLeadDataModal(true)}
-              style={{
-                backgroundColor: '#FFFFFF',
-                border: '1.5px solid #A7F3D0',
-                borderRadius: '18px',
-                padding: '18px',
-                minHeight: '142px',
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'space-between',
-                cursor: 'pointer',
-                boxShadow: '0 2px 8px rgba(6, 78, 59, 0.03)',
-                transition: 'transform 0.15s ease, box-shadow 0.15s ease',
-              }}
-              title="Open Long-Term Support Lead Data Box"
-            >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                {/* DEEP GREEN ICON BOX AS REQUESTED */}
-                <div
-                  style={{
-                    width: '42px',
-                    height: '42px',
-                    borderRadius: '12px',
-                    backgroundColor: '#064E3B',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    boxShadow: '0 2px 6px rgba(6, 78, 59, 0.25)',
-                  }}
-                >
-                  <Heart size={22} color="#FFFFFF" strokeWidth={2.2} />
-                </div>
-                <ChevronRight size={18} color="#64748B" />
+        {/* =========================================================================
+            SECTION 7: LONG-TERM SUPPORT MESSAGE BOX
+            Purpose: Send manual long-term support messages and renewal reminders.
+           ========================================================================= */}
+        <section
+          id="admin-section-7-longterm-message-box"
+          style={{
+            backgroundColor: '#FFFFFF',
+            borderRadius: '20px',
+            border: '1.5px solid #CBD5E1',
+            padding: '22px',
+            boxShadow: '0 4px 16px rgba(0,0,0,0.03)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '14px',
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div style={{ width: '4px', height: '22px', backgroundColor: '#059669', borderRadius: '2px', flexShrink: 0 }} />
+                <h2 style={{ fontSize: '20px', fontWeight: 800, color: '#064E3B', margin: 0, letterSpacing: '-0.3px' }}>
+                  7. Long-Term Support Message Box
+                </h2>
               </div>
-
-              <div style={{ marginTop: '18px' }}>
-                <div style={{ fontSize: '18px', fontWeight: 800, color: '#064E3B', lineHeight: 1.25 }}>
-                  Long Term Support
-                </div>
-                <div style={{ fontSize: '18px', fontWeight: 800, color: '#064E3B', lineHeight: 1.25 }}>
-                  Lead Data Box
-                </div>
-              </div>
+              <p style={{ fontSize: '13px', color: '#64748B', margin: '3px 0 0 12px', fontWeight: 500 }}>
+                Send manual long-term support messages and renewal reminders.
+              </p>
             </div>
 
-            {/* Card 2: Long Term Sold Data Box */}
-            <div
-              onClick={() => setShowLongTermSoldDataModal(true)}
-              style={{
-                backgroundColor: '#FFFFFF',
-                border: '1.5px solid #A7F3D0',
-                borderRadius: '18px',
-                padding: '18px',
-                minHeight: '142px',
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'space-between',
-                cursor: 'pointer',
-                boxShadow: '0 2px 8px rgba(6, 78, 59, 0.03)',
-                transition: 'transform 0.15s ease, box-shadow 0.15s ease',
-              }}
-              title="Open Long-Term Sold Clients Data Box"
-            >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                {/* DEEP GREEN ICON BOX AS REQUESTED */}
-                <div
-                  style={{
-                    width: '42px',
-                    height: '42px',
-                    borderRadius: '12px',
-                    backgroundColor: '#064E3B',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    boxShadow: '0 2px 6px rgba(6, 78, 59, 0.25)',
-                  }}
-                >
-                  <Heart size={22} color="#FFFFFF" strokeWidth={2.2} />
-                </div>
-                <ChevronRight size={18} color="#64748B" />
-              </div>
+            {longTermMsgSent && (
+              <span style={{ fontSize: '12px', fontWeight: 800, color: '#059669', backgroundColor: '#ECFDF5', padding: '4px 10px', borderRadius: '6px' }}>
+                ✓ Long-Term Support Message Dispatched!
+              </span>
+            )}
+          </div>
 
-              <div style={{ marginTop: '18px' }}>
-                <div style={{ fontSize: '18px', fontWeight: 800, color: '#064E3B', lineHeight: 1.25 }}>
-                  Long Term Sold
-                </div>
-                <div style={{ fontSize: '18px', fontWeight: 800, color: '#064E3B', lineHeight: 1.25 }}>
-                  Data Box
-                </div>
-              </div>
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+            <span style={{ fontSize: '11.5px', fontWeight: 700, color: '#475569', alignSelf: 'center' }}>Quick Templates:</span>
+            {[
+              { id: 'renewal', label: '14-Day Validity Renewal Reminder', text: 'Hi! This is a gentle reminder from She Nourishes. Your Long-Term Support Program validity is approaching its scheduled completion in 14 days. To maintain your metabolic momentum and uninterrupted personalized diet calibrations, renew your protocol today.' },
+              { id: 'milestone', label: 'Quarterly Milestone & Body Fat Check-in', text: 'Hi! You have completed another month in your Long-Term Transformation journey! Please upload your latest body weight and waist measurement so we can review your body fat progress.' },
+              { id: 'intensity', label: 'Workout Intensity Upgrade Notice', text: 'Congratulations! Based on your steady workout completion over the past 4 weeks, your training intensity has been upgraded to Intermediate (2.0x). Your new exercise targets are ready in your Activity tab.' },
+            ].map((tmpl) => (
+              <button
+                key={tmpl.id}
+                type="button"
+                onClick={() => {
+                  setLongTermMsgTemplate(tmpl.id);
+                  setLongTermMsgText(tmpl.text);
+                }}
+                style={{
+                  padding: '5px 12px',
+                  borderRadius: '6px',
+                  fontSize: '11px',
+                  fontWeight: 700,
+                  border: longTermMsgTemplate === tmpl.id ? '1px solid #059669' : '1px solid #E2E8F0',
+                  backgroundColor: longTermMsgTemplate === tmpl.id ? '#ECFDF5' : '#F8FAFC',
+                  color: longTermMsgTemplate === tmpl.id ? '#047857' : '#475569',
+                  cursor: 'pointer',
+                }}
+              >
+                {tmpl.label}
+              </button>
+            ))}
+          </div>
+
+          <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
+            <label style={{ fontSize: '12px', fontWeight: 700, color: '#334155' }}>
+              Target Client:
+            </label>
+            <select
+              value={longTermMsgClient}
+              onChange={(e) => setLongTermMsgClient(e.target.value)}
+              style={{
+                padding: '6px 12px',
+                borderRadius: '8px',
+                border: '1px solid #CBD5E1',
+                fontSize: '12px',
+                backgroundColor: '#FFFFFF',
+                color: '#1E293B',
+                fontWeight: 600,
+              }}
+            >
+              <option value="">All Long-Term Support Clients (Broadcast)</option>
+              {clients.map(c => (
+                <option key={c.uid} value={c.uid}>
+                  {c.personalDetails?.fullName || 'Client'} ({c.personalDetails?.mobileNumber || c.uid.slice(0, 8)})
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+            <div style={{ flex: 1, minWidth: '280px' }}>
+              <textarea
+                rows={3}
+                value={longTermMsgText}
+                onChange={(e) => setLongTermMsgText(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '12px',
+                  borderRadius: '10px',
+                  border: '1px solid #CBD5E1',
+                  fontSize: '13px',
+                  lineHeight: 1.5,
+                  color: '#1E293B',
+                  backgroundColor: '#FAF9F6',
+                  fontFamily: 'inherit',
+                }}
+                placeholder="Type your long-term support message or renewal reminder..."
+              />
             </div>
           </div>
+
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+            <button
+              type="button"
+              onClick={() => {
+                setLongTermMsgSent(true);
+                setTimeout(() => setLongTermMsgSent(false), 3000);
+              }}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '9px 18px',
+                borderRadius: '8px',
+                backgroundColor: '#059669',
+                color: '#FFFFFF',
+                fontSize: '12.5px',
+                fontWeight: 800,
+                border: 'none',
+                cursor: 'pointer',
+                boxShadow: '0 2px 8px rgba(5, 150, 105, 0.25)',
+              }}
+            >
+              <Send size={15} />
+              <span>Send Long-Term Message & Renewal Reminder</span>
+            </button>
+          </div>
         </section>
+
+        {/* =========================================================================
+            SECTION 8: END-OF-MONTH REGISTRATION DATA BOX
+            Purpose: Generate Excel reports containing confirmed sales and client registration details.
+           ========================================================================= */}
+        <EndOfMonthRegistrationDataBox clients={clients} />
+
+        {/* =========================================================================
+            SECTION 9: ALL CLIENT DATA BOX
+            Purpose: Access detailed client records and profiles.
+            9A. Long-Term Support Client Data (with 6 subsections: Basic, Activity, Blood, Gifts, Performance [Body Fat Planner], Intensity)
+            9B. One-on-One Counseling Client Data
+           ========================================================================= */}
+        <AllClientDataSection
+          clients={clients}
+          selectedClientId={selectedClientId}
+          onSelectClient={(id) => setSelectedClientId(id)}
+          onOpenWorkoutPlanModal={() => setShowWorkoutPlanModal(true)}
+          onOpenBloodTestModal={() => setShowBloodTestModal(true)}
+          onOpenPhotoScannerModal={() => setShowPhotoScannerModal(true)}
+          onOpenIntensityModal={() => setShowIntensityModal(true)}
+          onOpenBodyTransformationModal={() => setShowBodyTransformationModal(true)}
+        />
+
 
         {/* =========================================================================
             TODAY'S OVERVIEW: FOLLOW-UP MESSAGES HUB, CHAT & DIET CHART
@@ -2111,6 +2213,17 @@ export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({
         onClose={() => setShowWorkoutPlanModal(false)}
         clientId={selectedClientId}
         clientName={selectedClient?.personalDetails?.fullName || 'Client'}
+      />
+
+      {/* Body Fat & Transformation Assessment Modal (3, 6, 9, 12-Month Plan) */}
+      <BodyTransformationAssessmentModal
+        isOpen={showBodyTransformationModal}
+        onClose={() => setShowBodyTransformationModal(false)}
+        clientId={selectedClientId}
+        clientName={selectedClient?.personalDetails?.fullName || 'Client'}
+        gender={selectedClient?.personalDetails?.gender === 'Male' ? 'Male' : 'Female'}
+        weightKg={selectedClient?.personalDetails?.weight || 64}
+        bodyFatPct={selectedClient?.personalDetails?.bodyFatPercentage ?? 26}
       />
     </div>
   );
