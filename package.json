@@ -1,0 +1,43 @@
+{
+  "name": "she-nourishes-app",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "login": "firebase login",
+    "login:reauth": "firebase login --reauth",
+    "deploy": "npm run build && firebase deploy",
+    "deploy:batched": "./deploy-batched.sh",
+    "deploy:resume": "./deploy-resume.sh",
+    "cap:sync": "npx cap sync",
+    "cap:android": "npx cap open android",
+    "cap:ios": "npx cap open ios",
+    "build:native": "npm run build && npx cap sync"
+  },
+  "dependencies": {
+    "@capacitor/android": "^7.6.8",
+    "@capacitor/app": "^7.1.2",
+    "@capacitor/cli": "^7.6.8",
+    "@capacitor/core": "^7.6.8",
+    "@capacitor/ios": "^7.6.8",
+    "@capacitor/keyboard": "^7.0.6",
+    "@capacitor/local-notifications": "^7.0.7",
+    "@capacitor/splash-screen": "^7.0.5",
+    "@capacitor/status-bar": "^7.0.6",
+    "firebase": "^10.13.0",
+    "lucide-react": "^0.439.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.5",
+    "@types/react-dom": "^18.3.0",
+    "@vitejs/plugin-react": "^4.3.1",
+    "firebase-tools": "^15.27.0",
+    "typescript": "^5.5.3",
+    "vite": "^5.4.2"
+  }
+}

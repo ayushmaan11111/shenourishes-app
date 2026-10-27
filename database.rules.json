@@ -1,0 +1,28 @@
+{
+  "rules": {
+    "customers": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "databook": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "adminFollowUps": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "chat": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "counselling": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "longTermSupport": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    }
+  }
+}
