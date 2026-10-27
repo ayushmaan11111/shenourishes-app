@@ -8,16 +8,25 @@ import {
   RotateCcw,
   Upload,
   Key,
-  Film
+  Film,
+  HelpCircle,
+  ExternalLink,
+  ShieldCheck,
+  Zap,
+  Info
 } from 'lucide-react';
 import {
-  analyzePhysiqueWithGemini,
-  renderTransformationVideoBlob,
+  AI_VIDEO_PROVIDERS,
+  generateAITransformationVideo,
   downloadTransformationVideo,
   saveTransformationVideoRecord,
   getTransformationVideos,
-  getSavedGeminiApiKey,
-  saveGeminiApiKey,
+  getSavedProvider,
+  saveSelectedProvider,
+  getSavedApiKey,
+  saveApiKey,
+  testApiKey,
+  type AIVideoProvider,
   type TransformationVideoOptions,
   type ClientTransformationVideoRecord,
 } from '../../services/transformationVideoService';
@@ -42,11 +51,19 @@ export const ClientTransformationVideoModal: React.FC<ClientTransformationVideoM
   const [selectedClientId, setSelectedClientId] = useState<string>(initialClientId || (clients[0]?.uid || ''));
   const currentClient = clients.find((c) => c.uid === selectedClientId) || clients[0];
 
+  // Provider & API Key State
+  const [selectedProvider, setSelectedProvider] = useState<AIVideoProvider>(getSavedProvider());
+  const [providerApiKey, setProviderApiKey] = useState<string>(getSavedApiKey(getSavedProvider()));
+  const [isTestingKey, setIsTestingKey] = useState<boolean>(false);
+  const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [showSetupGuide, setShowSetupGuide] = useState<boolean>(false);
+  const [showApiSettings, setShowApiSettings] = useState<boolean>(false);
+
   // Physique image state
   const [currentImageUrl, setCurrentImageUrl] = useState<string>(
     initialImageUrl || 'https://images.unsplash.com/photo-1518611012118-696072aa579a?auto=format&fit=crop&w=600&q=80'
   );
-  const [customTargetImageUrl, setCustomTargetImageUrl] = useState<string>('');
+  const [customTargetImageUrl] = useState<string>('');
   const [existingPhotos, setExistingPhotos] = useState<any[]>([]);
 
   // Transformation options
@@ -58,22 +75,18 @@ export const ClientTransformationVideoModal: React.FC<ClientTransformationVideoM
   const [primaryGoal, setPrimaryGoal] = useState<string>('Fat Loss & Lean Waist Cinching');
   const [gender, setGender] = useState<'Female' | 'Male'>('Female');
 
-  // Gemini API Settings
-  const [showApiSettings, setShowApiSettings] = useState<boolean>(false);
-  const [geminiApiKey, setGeminiApiKey] = useState<string>('');
-  const [aiModel, setAiModel] = useState<string>('gemini-2.0-flash');
-  const [keySavedMessage, setKeySavedMessage] = useState<boolean>(false);
-
   // Generation state
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
   const [generationProgress, setGenerationProgress] = useState<number>(0);
   const [generationStage, setGenerationStage] = useState<string>('');
   const [generatedVideo, setGeneratedVideo] = useState<{
     blob: Blob | null;
-    blobUrl: string;
+    videoUrl: string;
     durationSec: number;
     thumbnailUrl: string;
     aiAnalysis?: any;
+    isRealAI?: boolean;
+    provider?: AIVideoProvider;
   } | null>(null);
 
   // Video playback
@@ -94,7 +107,7 @@ export const ClientTransformationVideoModal: React.FC<ClientTransformationVideoM
       setGender(g);
       const w = currentClient.personalDetails?.weight || (g === 'Male' ? 78 : 68);
       setStartingWeightKg(w);
-      setTargetWeightKg(Math.round(w * 0.85)); // 15% reduction default
+      setTargetWeightKg(Math.round(w * 0.85));
       const bf = currentClient.personalDetails?.bodyFatPercentage || (g === 'Male' ? 24 : 32);
       setStartingBodyFatPct(bf);
       setTargetBodyFatPct(Math.max(g === 'Male' ? 12 : 18, Math.round(bf - 10)));
@@ -116,30 +129,38 @@ export const ClientTransformationVideoModal: React.FC<ClientTransformationVideoM
     }
   }, [selectedClientId, initialImageUrl]);
 
-  // Load saved Gemini API Key
-  useEffect(() => {
-    setGeminiApiKey(getSavedGeminiApiKey());
-  }, []);
-
-  if (!isOpen) return null;
-
-  const handleSaveApiKey = () => {
-    saveGeminiApiKey(geminiApiKey);
-    setKeySavedMessage(true);
-    setTimeout(() => setKeySavedMessage(false), 3000);
+  // Switch provider key
+  const handleProviderChange = (newProvider: AIVideoProvider) => {
+    setSelectedProvider(newProvider);
+    saveSelectedProvider(newProvider);
+    setProviderApiKey(getSavedApiKey(newProvider));
+    setTestResult(null);
   };
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>, isTarget: boolean = false) => {
+  const handleSaveApiKey = () => {
+    saveApiKey(selectedProvider, providerApiKey);
+    setTestResult({ success: true, message: '✓ Key saved in secure local storage.' });
+    setTimeout(() => setTestResult(null), 3000);
+  };
+
+  const handleTestKey = async () => {
+    setIsTestingKey(true);
+    setTestResult(null);
+    try {
+      const res = await testApiKey(selectedProvider, providerApiKey);
+      setTestResult(res);
+    } finally {
+      setIsTestingKey(false);
+    }
+  };
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
     reader.onload = (event) => {
       const result = event.target?.result as string;
-      if (isTarget) {
-        setCustomTargetImageUrl(result);
-      } else {
-        setCurrentImageUrl(result);
-      }
+      setCurrentImageUrl(result);
     };
     reader.readAsDataURL(file);
   };
@@ -152,7 +173,7 @@ export const ClientTransformationVideoModal: React.FC<ClientTransformationVideoM
 
     setIsGenerating(true);
     setGenerationProgress(5);
-    setGenerationStage('Connecting to Clinical AI Transformation Engine...');
+    setGenerationStage(`Connecting to ${selectedProvider === 'canvas_morph' ? 'Clinical Morph Engine' : 'Real AI Video Generation Cluster'}...`);
     setGeneratedVideo(null);
 
     try {
@@ -169,30 +190,18 @@ export const ClientTransformationVideoModal: React.FC<ClientTransformationVideoM
         currentPhysiqueImageUrl: currentImageUrl,
         targetPhysiqueImageUrl: customTargetImageUrl || undefined,
         primaryGoal,
-        geminiApiKey: geminiApiKey || undefined,
-        aiModel,
-        videoDurationSeconds: 9,
+        videoDurationSeconds: 10,
       };
 
-      // 1. Analyze with Gemini Multimodal
-      setGenerationStage('Consulting Google Gemini AI for anatomical projection & body composition analysis...');
-      setGenerationProgress(12);
-      const aiAnalysis = await analyzePhysiqueWithGemini(options, currentImageUrl);
-
-      // 2. Render 8-10 second video
-      const result = await renderTransformationVideoBlob(options, (pct, stage) => {
+      // Call master real AI video dispatcher
+      const result = await generateAITransformationVideo(options, selectedProvider, (pct, stage) => {
         setGenerationProgress(pct);
         setGenerationStage(stage);
       });
 
-      const videoData = {
-        ...result,
-        aiAnalysis,
-      };
+      setGeneratedVideo(result);
 
-      setGeneratedVideo(videoData);
-
-      // 3. Persist record to history
+      // Save to client history
       const newRecord: ClientTransformationVideoRecord = {
         id: `trans_vid_${Date.now()}`,
         clientId: selectedClientId,
@@ -205,9 +214,11 @@ export const ClientTransformationVideoModal: React.FC<ClientTransformationVideoM
         startingWeightKg,
         targetWeightKg,
         primaryGoal,
-        videoBlobUrl: result.blobUrl,
+        videoBlobUrl: result.videoUrl,
         thumbnailUrl: result.thumbnailUrl,
-        aiAnalysis,
+        isRealAI: result.isRealAI,
+        provider: result.provider,
+        aiAnalysis: result.aiAnalysis,
       };
 
       await saveTransformationVideoRecord(newRecord);
@@ -225,9 +236,9 @@ export const ClientTransformationVideoModal: React.FC<ClientTransformationVideoM
   };
 
   const handleDownload = () => {
-    if (!generatedVideo?.blob) return;
+    if (!generatedVideo?.videoUrl) return;
     const clientName = currentClient?.personalDetails?.fullName || 'Client';
-    downloadTransformationVideo(generatedVideo.blob, clientName, durationMonths);
+    downloadTransformationVideo(generatedVideo.blob || generatedVideo.videoUrl, clientName, durationMonths);
   };
 
   const togglePlay = () => {
@@ -239,12 +250,16 @@ export const ClientTransformationVideoModal: React.FC<ClientTransformationVideoM
     }
   };
 
+  const activeProviderConfig = AI_VIDEO_PROVIDERS.find((p) => p.id === selectedProvider) || AI_VIDEO_PROVIDERS[0];
+
+  if (!isOpen) return null;
+
   return (
     <div
       style={{
         position: 'fixed',
         inset: 0,
-        backgroundColor: 'rgba(10, 28, 68, 0.75)',
+        backgroundColor: 'rgba(10, 28, 68, 0.8)',
         backdropFilter: 'blur(8px)',
         zIndex: 9999,
         display: 'flex',
@@ -259,11 +274,11 @@ export const ClientTransformationVideoModal: React.FC<ClientTransformationVideoM
           backgroundColor: '#FFFFFF',
           borderRadius: '24px',
           width: '100%',
-          maxWidth: '1240px',
+          maxWidth: '1280px',
           maxHeight: '94vh',
           display: 'flex',
           flexDirection: 'column',
-          boxShadow: '0 25px 60px -15px rgba(0, 0, 0, 0.3)',
+          boxShadow: '0 25px 60px -15px rgba(0, 0, 0, 0.35)',
           border: '1.5px solid #CBD5E1',
           overflow: 'hidden',
         }}
@@ -271,7 +286,7 @@ export const ClientTransformationVideoModal: React.FC<ClientTransformationVideoM
         {/* ================= MODAL HEADER ================= */}
         <div
           style={{
-            padding: '20px 24px',
+            padding: '18px 24px',
             backgroundColor: '#0A1C44',
             color: '#FFFFFF',
             display: 'flex',
@@ -283,8 +298,8 @@ export const ClientTransformationVideoModal: React.FC<ClientTransformationVideoM
           <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
             <div
               style={{
-                width: '44px',
-                height: '44px',
+                width: '42px',
+                height: '42px',
                 borderRadius: '12px',
                 backgroundColor: 'rgba(190, 24, 93, 0.25)',
                 display: 'flex',
@@ -298,12 +313,12 @@ export const ClientTransformationVideoModal: React.FC<ClientTransformationVideoM
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <h3 style={{ fontSize: '19px', fontWeight: 800, margin: 0, letterSpacing: '-0.3px' }}>
-                  Client Transformation Video Generator
+                  Real AI Client Transformation Video Generator
                 </h3>
                 <span
                   style={{
-                    backgroundColor: '#ECFDF5',
-                    color: '#059669',
+                    backgroundColor: selectedProvider === 'canvas_morph' ? '#FEF3C7' : '#ECFDF5',
+                    color: selectedProvider === 'canvas_morph' ? '#B45309' : '#059669',
                     fontSize: '11px',
                     fontWeight: 800,
                     padding: '3px 9px',
@@ -313,16 +328,38 @@ export const ClientTransformationVideoModal: React.FC<ClientTransformationVideoM
                     gap: '4px',
                   }}
                 >
-                  <Sparkles size={12} /> AI Omni / Gemini 2.0
+                  <Sparkles size={12} /> {activeProviderConfig.name}
                 </span>
               </div>
               <p style={{ fontSize: '13px', color: '#94A3B8', margin: '3px 0 0 0' }}>
-                Generate an 8–10s Before vs Projected After video (3–12 months consistency) to download and present in client meetings or consultations.
+                Generates a 8–10 second video of the client's physique transformation over 3–12 months of consistency for physical meetings.
               </p>
             </div>
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            {/* API Setup Guide Button */}
+            <button
+              type="button"
+              onClick={() => setShowSetupGuide(!showSetupGuide)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '7px 12px',
+                borderRadius: '8px',
+                backgroundColor: 'rgba(255, 255, 255, 0.12)',
+                color: '#E0E7FF',
+                border: '1px solid rgba(255, 255, 255, 0.2)',
+                fontSize: '12px',
+                fontWeight: 700,
+                cursor: 'pointer',
+              }}
+            >
+              <HelpCircle size={15} color="#38BDF8" />
+              <span>{showSetupGuide ? 'Hide API Setup Guide' : '📖 How to Setup API Keys'}</span>
+            </button>
+
             {/* Client Selector Dropdown */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <span style={{ fontSize: '12px', color: '#94A3B8', fontWeight: 600 }}>Client:</span>
@@ -369,6 +406,142 @@ export const ClientTransformationVideoModal: React.FC<ClientTransformationVideoM
           </div>
         </div>
 
+        {/* ================= STEP-BY-STEP API SETUP GUIDE (TOGGLEABLE) ================= */}
+        {showSetupGuide && (
+          <div
+            style={{
+              padding: '18px 24px',
+              backgroundColor: '#0F172A',
+              color: '#F8FAFC',
+              borderBottom: '2px solid #334155',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '12px',
+              maxHeight: '360px',
+              overflowY: 'auto',
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <ShieldCheck size={18} color="#34D399" />
+                <h4 style={{ fontSize: '15px', fontWeight: 800, margin: 0, color: '#FFFFFF' }}>
+                  Real AI Video Generation Setup Guide (1-Minute Quick Start)
+                </h4>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowSetupGuide(false)}
+                style={{
+                  backgroundColor: 'transparent',
+                  border: 'none',
+                  color: '#94A3B8',
+                  fontSize: '12px',
+                  cursor: 'pointer',
+                  fontWeight: 700,
+                }}
+              >
+                ✕ Close Guide
+              </button>
+            </div>
+
+            <p style={{ fontSize: '12.5px', color: '#CBD5E1', margin: 0, lineHeight: 1.5 }}>
+              To generate real, neural-synthesized videos of client transformations, choose your preferred cloud AI provider below. All you need is an API token.
+            </p>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '14px', marginTop: '4px' }}>
+              {/* Card 1: Replicate (Recommended) */}
+              <div style={{ backgroundColor: '#1E293B', padding: '14px', borderRadius: '12px', border: '1px solid #38BDF8' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                  <strong style={{ color: '#38BDF8', fontSize: '13px' }}>1. Replicate AI</strong>
+                  <span style={{ fontSize: '10px', backgroundColor: '#0369A1', color: '#FFF', padding: '2px 6px', borderRadius: '4px', fontWeight: 800 }}>
+                    Recommended
+                  </span>
+                </div>
+                <p style={{ fontSize: '11.5px', color: '#94A3B8', margin: '0 0 10px 0', lineHeight: 1.4 }}>
+                  Uses Minimax Video-01 or Kling 1.5. Highest realism for human physique transformations.
+                </p>
+                <div style={{ fontSize: '11px', color: '#E2E8F0', display: 'flex', flexDirection: 'column', gap: '4px', marginBottom: '10px' }}>
+                  <div>1. Go to <strong>replicate.com</strong></div>
+                  <div>2. Sign in with GitHub/Email</div>
+                  <div>3. Copy your API Token (starts with <code>r8_</code>)</div>
+                  <div>4. Paste it in the API Key box below</div>
+                </div>
+                <a
+                  href="https://replicate.com/account/api-tokens"
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '11.5px', color: '#38BDF8', fontWeight: 700, textDecoration: 'none' }}
+                >
+                  <span>Get Replicate Token</span> <ExternalLink size={12} />
+                </a>
+              </div>
+
+              {/* Card 2: Luma Dream Machine */}
+              <div style={{ backgroundColor: '#1E293B', padding: '14px', borderRadius: '12px', border: '1px solid #475569' }}>
+                <strong style={{ color: '#F472B6', fontSize: '13px', display: 'block', marginBottom: '6px' }}>2. Luma Ray</strong>
+                <p style={{ fontSize: '11.5px', color: '#94A3B8', margin: '0 0 10px 0', lineHeight: 1.4 }}>
+                  Specialized keyframe morphing model that seamlessly transitions from Before photo to After.
+                </p>
+                <div style={{ fontSize: '11px', color: '#E2E8F0', display: 'flex', flexDirection: 'column', gap: '4px', marginBottom: '10px' }}>
+                  <div>1. Visit <strong>lumalabs.ai</strong></div>
+                  <div>2. Go to API Dashboard</div>
+                  <div>3. Create an API Key (starts with <code>luma-</code>)</div>
+                </div>
+                <a
+                  href="https://lumalabs.ai/dream-machine/api"
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '11.5px', color: '#F472B6', fontWeight: 700, textDecoration: 'none' }}
+                >
+                  <span>Get Luma API Key</span> <ExternalLink size={12} />
+                </a>
+              </div>
+
+              {/* Card 3: RunwayML Gen-3 */}
+              <div style={{ backgroundColor: '#1E293B', padding: '14px', borderRadius: '12px', border: '1px solid #475569' }}>
+                <strong style={{ color: '#A78BFA', fontSize: '13px', display: 'block', marginBottom: '6px' }}>3. RunwayML</strong>
+                <p style={{ fontSize: '11.5px', color: '#94A3B8', margin: '0 0 10px 0', lineHeight: 1.4 }}>
+                  Gen-3 Alpha model provides Hollywood-caliber fluid video generation with lighting control.
+                </p>
+                <div style={{ fontSize: '11px', color: '#E2E8F0', display: 'flex', flexDirection: 'column', gap: '4px', marginBottom: '10px' }}>
+                  <div>1. Go to <strong>dev.runwayml.com</strong></div>
+                  <div>2. Sign in and create an API Key</div>
+                  <div>3. Paste key below</div>
+                </div>
+                <a
+                  href="https://dev.runwayml.com/"
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '11.5px', color: '#A78BFA', fontWeight: 700, textDecoration: 'none' }}
+                >
+                  <span>Get Runway Key</span> <ExternalLink size={12} />
+                </a>
+              </div>
+
+              {/* Card 4: Google Veo / Gemini */}
+              <div style={{ backgroundColor: '#1E293B', padding: '14px', borderRadius: '12px', border: '1px solid #475569' }}>
+                <strong style={{ color: '#34D399', fontSize: '13px', display: 'block', marginBottom: '6px' }}>4. Google AI Studio</strong>
+                <p style={{ fontSize: '11.5px', color: '#94A3B8', margin: '0 0 10px 0', lineHeight: 1.4 }}>
+                  Google Veo 2 & Gemini 2.0 Flash multimodal models for clinical analysis and video.
+                </p>
+                <div style={{ fontSize: '11px', color: '#E2E8F0', display: 'flex', flexDirection: 'column', gap: '4px', marginBottom: '10px' }}>
+                  <div>1. Go to <strong>aistudio.google.com</strong></div>
+                  <div>2. Click "Get API Key"</div>
+                  <div>3. Free tier quota included</div>
+                </div>
+                <a
+                  href="https://aistudio.google.com/app/apikey"
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '11.5px', color: '#34D399', fontWeight: 700, textDecoration: 'none' }}
+                >
+                  <span>Get Google API Key</span> <ExternalLink size={12} />
+                </a>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* ================= MODAL BODY ================= */}
         <div
           style={{
@@ -377,13 +550,201 @@ export const ClientTransformationVideoModal: React.FC<ClientTransformationVideoM
             padding: '24px',
             backgroundColor: '#F8FAFC',
             display: 'grid',
-            gridTemplateColumns: 'minmax(420px, 1fr) minmax(460px, 1.15fr)',
+            gridTemplateColumns: 'minmax(440px, 1fr) minmax(460px, 1.15fr)',
             gap: '24px',
           }}
         >
-          {/* ================= LEFT COLUMN: INPUTS & SETTINGS ================= */}
+          {/* ================= LEFT COLUMN: INPUTS & AI ENGINE SELECTION ================= */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
-            {/* Step 1: Physique Photo Upload */}
+            {/* Step 1: Real AI Video Engine Selector */}
+            <div
+              style={{
+                backgroundColor: '#FFFFFF',
+                padding: '20px',
+                borderRadius: '16px',
+                border: '1.5px solid #CBD5E1',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.02)',
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Zap size={18} color="#BE185D" />
+                  <h4 style={{ fontSize: '15px', fontWeight: 800, color: '#0A1C44', margin: 0 }}>
+                    1. Choose AI Video Engine
+                  </h4>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowApiSettings(!showApiSettings)}
+                  style={{
+                    backgroundColor: 'transparent',
+                    border: 'none',
+                    color: '#0284C7',
+                    fontSize: '12px',
+                    fontWeight: 800,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                  }}
+                >
+                  <Key size={13} /> {showApiSettings ? 'Hide Key' : 'Configure API Key'}
+                </button>
+              </div>
+
+              {/* Provider Radio Tabs */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {AI_VIDEO_PROVIDERS.map((prov) => {
+                  const isSelected = selectedProvider === prov.id;
+                  return (
+                    <div
+                      key={prov.id}
+                      onClick={() => handleProviderChange(prov.id)}
+                      style={{
+                        padding: '10px 14px',
+                        borderRadius: '10px',
+                        border: isSelected ? '2px solid #BE185D' : '1px solid #E2E8F0',
+                        backgroundColor: isSelected ? '#FFF1F2' : '#F8FAFC',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        transition: 'all 0.15s',
+                      }}
+                    >
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <span style={{ fontSize: '13px', fontWeight: 800, color: isSelected ? '#BE185D' : '#0A1C44' }}>
+                            {prov.name}
+                          </span>
+                          <span style={{ fontSize: '10px', fontWeight: 800, padding: '1px 6px', borderRadius: '4px', backgroundColor: isSelected ? '#BE185D' : '#E2E8F0', color: isSelected ? '#FFF' : '#475569' }}>
+                            {prov.tagline}
+                          </span>
+                        </div>
+                        <span style={{ fontSize: '11px', color: '#64748B' }}>
+                          {prov.description}
+                        </span>
+                      </div>
+
+                      <div style={{ textAlign: 'right', flexShrink: 0, marginLeft: '12px' }}>
+                        <span style={{ fontSize: '11px', fontWeight: 700, color: '#059669' }}>
+                          ~{prov.estimatedTimeSec}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* API Key Input Box (Expandable / Visible when configured) */}
+              {(showApiSettings || selectedProvider !== 'canvas_morph') && (
+                <div
+                  style={{
+                    marginTop: '14px',
+                    padding: '14px',
+                    borderRadius: '12px',
+                    backgroundColor: '#F1F5F9',
+                    border: '1px solid #CBD5E1',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '8px',
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <label style={{ fontSize: '12px', fontWeight: 700, color: '#334155' }}>
+                      {activeProviderConfig.name} API Key / Token:
+                    </label>
+                    <span style={{ fontSize: '10.5px', color: '#64748B' }}>
+                      {activeProviderConfig.pricingNote}
+                    </span>
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <input
+                      type="password"
+                      value={providerApiKey}
+                      onChange={(e) => setProviderApiKey(e.target.value)}
+                      placeholder={activeProviderConfig.keyPlaceholder}
+                      style={{
+                        flex: 1,
+                        padding: '8px 12px',
+                        borderRadius: '8px',
+                        border: '1px solid #CBD5E1',
+                        fontSize: '12px',
+                        backgroundColor: '#FFFFFF',
+                        color: '#0A1C44',
+                        fontFamily: 'monospace',
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={handleSaveApiKey}
+                      style={{
+                        padding: '8px 14px',
+                        borderRadius: '8px',
+                        backgroundColor: '#0A1C44',
+                        color: '#FFF',
+                        fontSize: '12px',
+                        fontWeight: 700,
+                        border: 'none',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      Save Key
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleTestKey}
+                      disabled={isTestingKey || !providerApiKey.trim()}
+                      style={{
+                        padding: '8px 14px',
+                        borderRadius: '8px',
+                        backgroundColor: isTestingKey ? '#94A3B8' : '#0284C7',
+                        color: '#FFF',
+                        fontSize: '12px',
+                        fontWeight: 700,
+                        border: 'none',
+                        cursor: isTestingKey || !providerApiKey.trim() ? 'not-allowed' : 'pointer',
+                      }}
+                    >
+                      {isTestingKey ? 'Testing...' : 'Test Key'}
+                    </button>
+                  </div>
+
+                  {testResult && (
+                    <div
+                      style={{
+                        fontSize: '11.5px',
+                        fontWeight: 700,
+                        color: testResult.success ? '#059669' : '#DC2626',
+                        backgroundColor: testResult.success ? '#ECFDF5' : '#FEF2F2',
+                        padding: '6px 10px',
+                        borderRadius: '6px',
+                        border: `1px solid ${testResult.success ? '#A7F3D0' : '#FECACA'}`,
+                      }}
+                    >
+                      {testResult.message}
+                    </div>
+                  )}
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '2px' }}>
+                    <Info size={13} color="#64748B" />
+                    <span style={{ fontSize: '11px', color: '#64748B' }}>
+                      Don't have a key?{' '}
+                      <button
+                        type="button"
+                        onClick={() => setShowSetupGuide(true)}
+                        style={{ backgroundColor: 'transparent', border: 'none', color: '#0284C7', fontWeight: 700, cursor: 'pointer', padding: 0 }}
+                      >
+                        Read the 1-minute setup guide
+                      </button>
+                    </span>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Step 2: Physique Photo Upload */}
             <div
               style={{
                 backgroundColor: '#FFFFFF',
@@ -409,7 +770,7 @@ export const ClientTransformationVideoModal: React.FC<ClientTransformationVideoM
                       justifyContent: 'center',
                     }}
                   >
-                    1
+                    2
                   </div>
                   <h4 style={{ fontSize: '15px', fontWeight: 800, color: '#0A1C44', margin: 0 }}>
                     Client's Current Physique Photo (Before)
@@ -440,7 +801,7 @@ export const ClientTransformationVideoModal: React.FC<ClientTransformationVideoM
                   type="file"
                   accept="image/*"
                   style={{ display: 'none' }}
-                  onChange={(e) => handleFileUpload(e, false)}
+                  onChange={handleFileUpload}
                 />
               </div>
 
@@ -503,7 +864,6 @@ export const ClientTransformationVideoModal: React.FC<ClientTransformationVideoM
                     />
                   </div>
 
-                  {/* Pick from existing client progress photos */}
                   {existingPhotos.length > 0 && (
                     <div>
                       <span style={{ fontSize: '11px', fontWeight: 700, color: '#64748B' }}>
@@ -534,7 +894,7 @@ export const ClientTransformationVideoModal: React.FC<ClientTransformationVideoM
               </div>
             </div>
 
-            {/* Step 2: Target Consistency Duration & Biometrics */}
+            {/* Step 3: Consistency Timeline & Biometrics */}
             <div
               style={{
                 backgroundColor: '#FFFFFF',
@@ -559,10 +919,10 @@ export const ClientTransformationVideoModal: React.FC<ClientTransformationVideoM
                     justifyContent: 'center',
                   }}
                 >
-                  2
+                  3
                 </div>
                 <h4 style={{ fontSize: '15px', fontWeight: 800, color: '#0A1C44', margin: 0 }}>
-                  Consistency Timeline & Projected Biometrics
+                  Consistency Timeline & Target Outcomes
                 </h4>
               </div>
 
@@ -705,115 +1065,6 @@ export const ClientTransformationVideoModal: React.FC<ClientTransformationVideoM
               </div>
             </div>
 
-            {/* Step 3: Google Gemini / Omni AI API Settings */}
-            <div
-              style={{
-                backgroundColor: '#FFFFFF',
-                borderRadius: '16px',
-                border: '1.5px solid #E2E8F0',
-                overflow: 'hidden',
-              }}
-            >
-              <div
-                onClick={() => setShowApiSettings(!showApiSettings)}
-                style={{
-                  padding: '14px 18px',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  cursor: 'pointer',
-                  backgroundColor: showApiSettings ? '#F1F5F9' : '#FFFFFF',
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <Key size={16} color="#0284C7" />
-                  <span style={{ fontSize: '13px', fontWeight: 800, color: '#0F172A' }}>
-                    AI Engine: Google Gemini 2.0 / Omni Settings
-                  </span>
-                  {geminiApiKey ? (
-                    <span style={{ backgroundColor: '#ECFDF5', color: '#059669', fontSize: '10.5px', fontWeight: 800, padding: '2px 6px', borderRadius: '4px' }}>
-                      Key Active
-                    </span>
-                  ) : (
-                    <span style={{ backgroundColor: '#FEF3C7', color: '#D97706', fontSize: '10.5px', fontWeight: 800, padding: '2px 6px', borderRadius: '4px' }}>
-                      Using Built-in Clinical Engine
-                    </span>
-                  )}
-                </div>
-                <span style={{ fontSize: '12px', color: '#64748B', fontWeight: 700 }}>
-                  {showApiSettings ? '▲ Hide' : '▼ Configure'}
-                </span>
-              </div>
-
-              {showApiSettings && (
-                <div style={{ padding: '16px 18px', borderTop: '1px solid #E2E8F0', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                  <div>
-                    <label style={{ fontSize: '11.5px', fontWeight: 700, color: '#64748B', display: 'block', marginBottom: '4px' }}>
-                      Google Gemini API Key:
-                    </label>
-                    <div style={{ display: 'flex', gap: '8px' }}>
-                      <input
-                        type="password"
-                        value={geminiApiKey}
-                        onChange={(e) => setGeminiApiKey(e.target.value)}
-                        placeholder="AIzaSy... (free key from Google AI Studio)"
-                        style={{
-                          flex: 1,
-                          padding: '8px 12px',
-                          borderRadius: '8px',
-                          border: '1px solid #CBD5E1',
-                          fontSize: '12px',
-                        }}
-                      />
-                      <button
-                        type="button"
-                        onClick={handleSaveApiKey}
-                        style={{
-                          padding: '8px 14px',
-                          borderRadius: '8px',
-                          backgroundColor: '#0284C7',
-                          color: '#FFF',
-                          fontSize: '12px',
-                          fontWeight: 700,
-                          border: 'none',
-                          cursor: 'pointer',
-                        }}
-                      >
-                        Save
-                      </button>
-                    </div>
-                    {keySavedMessage && (
-                      <span style={{ fontSize: '11px', color: '#059669', fontWeight: 700, marginTop: '4px', display: 'block' }}>
-                        ✓ Gemini API Key saved locally!
-                      </span>
-                    )}
-                  </div>
-
-                  <div>
-                    <label style={{ fontSize: '11.5px', fontWeight: 700, color: '#64748B', display: 'block', marginBottom: '4px' }}>
-                      Model:
-                    </label>
-                    <select
-                      value={aiModel}
-                      onChange={(e) => setAiModel(e.target.value)}
-                      style={{
-                        width: '100%',
-                        padding: '8px 12px',
-                        borderRadius: '8px',
-                        border: '1px solid #CBD5E1',
-                        fontSize: '12px',
-                        fontWeight: 600,
-                      }}
-                    >
-                      <option value="gemini-2.0-flash">Gemini 2.0 Flash (Recommended, Ultra Fast Multimodal)</option>
-                      <option value="gemini-1.5-flash">Gemini 1.5 Flash</option>
-                      <option value="gemini-1.5-pro">Gemini 1.5 Pro (Deep Clinical Reasoning)</option>
-                    </select>
-                  </div>
-                </div>
-              )}
-            </div>
-
             {/* Generate Action Button */}
             <button
               type="button"
@@ -839,8 +1090,8 @@ export const ClientTransformationVideoModal: React.FC<ClientTransformationVideoM
               <Sparkles size={18} />
               <span>
                 {isGenerating
-                  ? `Generating Video (${generationProgress}%)...`
-                  : `Generate ${durationMonths}-Month Transformation Video (8–10s)`}
+                  ? `Synthesizing Video (${generationProgress}%)...`
+                  : `Generate ${durationMonths}-Month Transformation Video via ${activeProviderConfig.name}`}
               </span>
             </button>
 
@@ -864,7 +1115,7 @@ export const ClientTransformationVideoModal: React.FC<ClientTransformationVideoM
                       width: `${generationProgress}%`,
                       height: '100%',
                       backgroundColor: '#BE185D',
-                      transition: 'width 0.2s ease',
+                      transition: 'width 0.3s ease',
                     }}
                   />
                 </div>
@@ -890,8 +1141,22 @@ export const ClientTransformationVideoModal: React.FC<ClientTransformationVideoM
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <Film size={18} color="#BE185D" />
                   <h4 style={{ fontSize: '15px', fontWeight: 800, color: '#0A1C44', margin: 0 }}>
-                    Transformation Video Preview (8–10s HD)
+                    Transformation Video Preview
                   </h4>
+                  {generatedVideo && (
+                    <span
+                      style={{
+                        backgroundColor: generatedVideo.isRealAI ? '#ECFDF5' : '#EFF6FF',
+                        color: generatedVideo.isRealAI ? '#059669' : '#1D4ED8',
+                        fontSize: '11px',
+                        fontWeight: 800,
+                        padding: '2px 8px',
+                        borderRadius: '6px',
+                      }}
+                    >
+                      {generatedVideo.isRealAI ? '✨ Real AI Generated (MP4)' : '⚡ Clinical HD Morph'}
+                    </span>
+                  )}
                 </div>
 
                 {generatedVideo && (
@@ -913,7 +1178,7 @@ export const ClientTransformationVideoModal: React.FC<ClientTransformationVideoM
                       boxShadow: '0 2px 8px rgba(5, 150, 105, 0.25)',
                     }}
                   >
-                    <Download size={15} /> Download Video (.webm)
+                    <Download size={15} /> Download Video (.mp4)
                   </button>
                 )}
               </div>
@@ -935,11 +1200,11 @@ export const ClientTransformationVideoModal: React.FC<ClientTransformationVideoM
                   border: '2px solid #334155',
                 }}
               >
-                {generatedVideo?.blobUrl ? (
+                {generatedVideo?.videoUrl ? (
                   <>
                     <video
                       ref={videoRef}
-                      src={generatedVideo.blobUrl}
+                      src={generatedVideo.videoUrl}
                       loop
                       playsInline
                       autoPlay
@@ -1039,10 +1304,10 @@ export const ClientTransformationVideoModal: React.FC<ClientTransformationVideoM
                       <Film size={32} color="#64748B" />
                     </div>
                     <span style={{ fontSize: '14px', fontWeight: 700, color: '#E2E8F0', marginBottom: '6px' }}>
-                      No Video Generated Yet
+                      Ready to Generate Video
                     </span>
                     <p style={{ fontSize: '12px', color: '#64748B', maxWidth: '240px', margin: 0 }}>
-                      Select a physique photo on the left and click "Generate Video" to create an 8–10 second transformation presentation.
+                      Select a physique photo on the left, choose your AI model, and click "Generate Video".
                     </p>
                   </div>
                 )}
@@ -1072,10 +1337,10 @@ export const ClientTransformationVideoModal: React.FC<ClientTransformationVideoM
                     }}
                   >
                     <Download size={18} />
-                    <span>Download Transformation Video (.webm / .mp4)</span>
+                    <span>Download Transformation Video (.mp4)</span>
                   </button>
                   <p style={{ fontSize: '11.5px', color: '#64748B', textAlign: 'center', margin: '6px 0 0 0' }}>
-                    Save to iPad, laptop, or smartphone to show to client during physical meetings or WhatsApp review.
+                    Save to iPad, laptop, or smartphone to show to client during physical face-to-face consultations.
                   </p>
                 </div>
               )}
@@ -1095,7 +1360,7 @@ export const ClientTransformationVideoModal: React.FC<ClientTransformationVideoM
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
                   <Sparkles size={17} color="#BE185D" />
                   <h4 style={{ fontSize: '14px', fontWeight: 800, color: '#0A1C44', margin: 0 }}>
-                    Clinical Consultation Script (For Physical Meeting)
+                    In-Person Consultation Script (For Physical Meeting)
                   </h4>
                 </div>
 
@@ -1109,7 +1374,7 @@ export const ClientTransformationVideoModal: React.FC<ClientTransformationVideoM
                   }}
                 >
                   <span style={{ fontSize: '11px', fontWeight: 800, color: '#BE185D', display: 'block', marginBottom: '4px' }}>
-                    RECOMMENDED VERBAL SCRIPT FOR CLIENT:
+                    RECOMMENDED VERBAL TALKING POINT:
                   </span>
                   <p style={{ fontSize: '12.5px', color: '#881337', fontStyle: 'italic', margin: 0, lineHeight: 1.5 }}>
                     {generatedVideo.aiAnalysis.motivationalMeetingScript}
@@ -1118,7 +1383,7 @@ export const ClientTransformationVideoModal: React.FC<ClientTransformationVideoM
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '12px', color: '#334155' }}>
                   <div>
-                    <strong style={{ color: '#0F172A' }}>Starting Physique: </strong>
+                    <strong style={{ color: '#0F172A' }}>Starting Assessment: </strong>
                     <span>{generatedVideo.aiAnalysis.startingAnalysis}</span>
                   </div>
                   <div>
@@ -1184,7 +1449,7 @@ export const ClientTransformationVideoModal: React.FC<ClientTransformationVideoM
                             {v.targetMonths}-Month Projection ({v.startingBodyFatPct}% → {v.targetBodyFatPct}% BF)
                           </div>
                           <span style={{ fontSize: '11px', color: '#64748B' }}>
-                            {new Date(v.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })} • {v.durationSeconds}s Video
+                            {new Date(v.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })} • {v.durationSeconds}s Video • {v.isRealAI ? '✨ Real AI' : '⚡ Clinical'}
                           </span>
                         </div>
                       </div>
@@ -1195,9 +1460,11 @@ export const ClientTransformationVideoModal: React.FC<ClientTransformationVideoM
                           onClick={() => {
                             setGeneratedVideo({
                               blob: null,
-                              blobUrl: v.videoBlobUrl!,
+                              videoUrl: v.videoBlobUrl!,
                               durationSec: v.durationSeconds,
                               thumbnailUrl: v.thumbnailUrl || '',
+                              isRealAI: v.isRealAI,
+                              provider: v.provider,
                               aiAnalysis: v.aiAnalysis,
                             });
                           }}
